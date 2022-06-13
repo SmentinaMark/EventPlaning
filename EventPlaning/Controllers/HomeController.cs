@@ -1,31 +1,57 @@
 ﻿using EventPlaning.Models;
+using EventPlaning.Models.Users;
+using EventPlaning.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Security.Claims;
 
 namespace EventPlaning.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private UserManager<User> _userManager;
 
-        public HomeController(ILogger<HomeController> logger)
+        private IUserEventService _userEventService;
+        private IParticipantService _participantService;
+
+        public HomeController(IParticipantService participantService, IUserEventService userEventService, UserManager<User> userManager)
         {
-            _logger = logger;
+            _userEventService = userEventService ?? throw new ArgumentNullException(nameof(userEventService));
+            _participantService = participantService ?? throw new ArgumentNullException(nameof(participantService));
+            _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
         }
 
-        public IActionResult Index()
+        public IActionResult Index() => View(_userEventService.GetItems());
+
+        [HttpGet]
+        public IActionResult Create() => View();
+
+        public IActionResult Create(UserEvent userEvent)
         {
-            return View();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            _userEventService.AddItem(userEvent, userId);
+            return RedirectToAction(nameof(Index));
         }
 
-        public IActionResult Privacy()
+        public IActionResult GoToEvent(Guid Id)
         {
-            return View();
+            if (Id != null)
+            {
+                var userEvent = _userEventService.GetItemById(Id);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (userEvent.Owner != Guid.Parse(userId) && userId != null)
+                {
+                    _participantService.GoToEvent(eventId: Id, userEvent: userEvent, userId: userId);
+                }
+                return RedirectToAction(nameof(Index));
+            }
+            else
+            {
+                return BadRequest();
+            }
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
