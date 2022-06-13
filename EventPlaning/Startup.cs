@@ -1,13 +1,17 @@
+using EventPlaning.Data.Contexts;
+using EventPlaning.Data.Repository;
+using EventPlaning.Models;
+using EventPlaning.Models.UserEvents;
+using EventPlaning.Models.Users;
+using EventPlaning.Services.Implementations;
+using EventPlaning.Services.Interfaces;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace EventPlaning
 {
@@ -19,11 +23,22 @@ namespace EventPlaning
         }
 
         public IConfiguration Configuration { get; }
-
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllersWithViews();
+
+            services.AddDbContext<ApplicationDbContext>(options =>
+               options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection")));
+
+            services.AddIdentity<User, IdentityRole>()
+                    .AddEntityFrameworkStores<ApplicationDbContext>()
+                    .AddDefaultTokenProviders();
+            services.AddControllersWithViews();
+
+            services.AddScoped<IUserEventService, UserEventService>();
+            services.AddScoped<IParticipantService, ParticipantService>();
+            services.AddScoped<IRepository<UserEvent>, UserEventRepository>();
+            services.AddScoped<IRepository<EventParticipant>, ParticipantRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -45,6 +60,7 @@ namespace EventPlaning
             app.UseRouting();
 
             app.UseAuthorization();
+            app.UseAuthentication();
 
             app.UseEndpoints(endpoints =>
             {
